@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: allowance
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: PAYPAL_BASE
+        value: https://api-m.sandbox.paypal.com
+      - key: MODEL
+        value: claude-sonnet-5-5
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
