@@ -41,19 +41,26 @@ async function token(): Promise<string> {
   return cached.token;
 }
 
-async function pp(path: string, body?: unknown, requestId?: string, retried = false): Promise<any> {
+async function pp(
+  path: string,
+  body?: unknown,
+  requestId?: string,
+  extra: Record<string, string> = {},
+  retried = false
+): Promise<any> {
   const r = await fetch(`${BASE()}${path}`, {
     method: body ? "POST" : "GET",
     headers: {
       Authorization: `Bearer ${await token()}`,
       "Content-Type": "application/json",
       ...(requestId ? { "PayPal-Request-Id": requestId } : {}), // idempotency key
+      ...extra,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (r.status === 401 && !retried) {
     cached = null; // token expired or revoked: refresh once
-    return pp(path, body, requestId, true);
+    return pp(path, body, requestId, extra, true);
   }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new PayPalError(r.status, path, j);
@@ -117,8 +124,20 @@ export async function createOrder(o: {
 
 /** Capture an approved order. Safe to repeat: an already-captured order is returned as-is. */
 export async function captureOrder(orderId: string) {
+  // Opt-in sandbox negative testing, e.g. PAYPAL_NEGATIVE_TEST=INSTRUMENT_DECLINED. Never sent to live.
+  const mock = process.env.PAYPAL_NEGATIVE_TEST;
+  const extra: Record<string, string> =
+    mock && BASE() === "https://api-m.sandbox.paypal.com"
+      ? { "PayPal-Mock-Response": JSON.stringify({ mock_application_codes: mock }) }
+      : {};
   try {
-    return await pp(`/v2/checkout/orders/${orderId}/capture`, {}, `capture-${orderId}`);
+    return await pp(
+      `/v2/checkout/orders/${orderId}/capture`,
+      {},
+      // A mocked failure must not be cached under the real capture's idempotency key.
+      mock && extra["PayPal-Mock-Response"] ? `capture-${orderId}-mock-${Date.now()}` : `capture-${orderId}`,
+      extra
+    );
   } catch (e) {
     if (e instanceof PayPalError && e.status === 422 && e.issue === "ORDER_ALREADY_CAPTURED") {
       return getOrder(orderId);
