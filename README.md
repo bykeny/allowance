@@ -29,7 +29,7 @@ npm run dev                  # http://localhost:3000
 
 1. **PayPal sandbox app.** In the [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/applications/sandbox), create a REST app under your sandbox *Business* account. Copy the client ID and secret into `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET`. To use unattended payments, enable the app's Vault / "save payment methods" feature.
 2. **Sandbox buyer.** Under *Testing Tools → Sandbox Accounts*, note the email and password of a *Personal* account. You log in with it when approving a payment or linking the wallet.
-3. **Anthropic key.** Set `ANTHROPIC_API_KEY`. `MODEL` picks the model.
+3. **LLM key.** The agent uses any OpenAI-compatible endpoint with tool calling. The default is Groq's free tier: create a key at [console.groq.com](https://console.groq.com) (no card needed) and set `LLM_API_KEY`. `LLM_BASE_URL` and `LLM_MODEL` switch provider or model (see `.env.example` for a Gemini example).
 4. **Webhook (optional, needs a public URL).** Add a webhook for `{APP_URL}/api/paypal/webhook` subscribed to `PAYMENT.CAPTURE.COMPLETED` and `PAYMENT.CAPTURE.DENIED`, and put its ID in `PAYPAL_WEBHOOK_ID`. Without it the app still works: captures are confirmed on the return redirect.
 
 ## Demo in three prompts
@@ -45,7 +45,7 @@ If no wallet is linked, in-policy purchases fall back to the human approval link
 ## How it works
 
 ```
-Chat UI ──► /api/agent (Claude tool loop) ──► request_purchase ──► Policy engine (pure code)
+Chat UI ──► /api/agent (LLM tool loop) ──► request_purchase ──► Policy engine (pure code)
                                                           ALLOW │ ESCALATE │ DENY
                                                                 ▼          ▼
                                               Order + vault_id     Order + approval link

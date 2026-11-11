@@ -1,51 +1,73 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { db } from "./db";
 import { searchCatalog } from "./catalog";
 import { requestPurchase, type PurchaseInput } from "./purchase";
 
-const SYSTEM = `You are a procurement agent with a PayPal-backed allowance.
-- Use search_catalog to find items; only buy items from the catalog, by item_id.
-- Check get_budget_status before your first purchase in a conversation.
-- Buy only what the user's task needs, one request_purchase per item.
-- A policy engine you cannot see or override returns ALLOW, ESCALATE or DENY.
-  Never split, re-word or retry a purchase to get around a verdict.
-- After acting, tell the user in 1-3 short sentences what happened to each
-  purchase and why, quoting the policy reason.`;
+/**
+ * Provider-agnostic agent. Talks to any OpenAI-compatible chat-completions
+ * endpoint: Groq (default), Gemini's OpenAI-compatible endpoint, OpenRouter,
+ * a local Ollama server... Switch with LLM_BASE_URL / LLM_API_KEY / LLM_MODEL.
+ */
+const DEFAULT_BASE_URL = "https://api.groq.com/openai/v1";
+const DEFAULT_MODEL = "llama-3.3-70b-versatile";
 
-const tools: Anthropic.Tool[] = [
+const SYSTEM = `You are a procurement agent with a PayPal-backed allowance.
+Rules:
+- Find items with search_catalog and buy only catalog items, by item_id.
+- Call get_budget_status once before your first purchase in a conversation.
+- One request_purchase call per item the user's task needs. Never buy extras.
+- A policy engine you cannot see or change answers ALLOW, ESCALATE or DENY.
+  Never split, re-word or retry a purchase to get around an answer.
+- After acting, reply in at most 3 short sentences: what happened to each item and why, quoting the policy reason. For ESCALATE say the human can approve it with the Approve in PayPal button in the ledger.
+Use the provided tools through the tool-calling interface only. Do not write tool calls as text.`;
+
+const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
-    name: "search_catalog",
-    description: "Search the vendor catalog. Returns items with id, vendor, category and price.",
-    input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
-  },
-  {
-    name: "get_budget_status",
-    description: "Current spend policy and how much of today's budget is left.",
-    input_schema: { type: "object", properties: {} },
-  },
-  {
-    name: "request_purchase",
-    description:
-      "Request to buy one catalog item. The policy engine decides: ALLOW (paid immediately from the linked PayPal wallet), ESCALATE (a human must approve in PayPal), or DENY.",
-    input_schema: {
-      type: "object",
-      properties: {
-        item_id: { type: "string", description: "Catalog item id" },
-        justification: { type: "string", description: "Why this purchase serves the user's goal" },
-      },
-      required: ["item_id", "justification"],
+    type: "function",
+    function: {
+      name: "search_catalog",
+      description: "Search the vendor catalog. Returns items with id, vendor, category and price.",
+      parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
     },
   },
   {
-    name: "check_purchase_status",
-    description: "Look up the current status of an earlier purchase intent.",
-    input_schema: { type: "object", properties: { intent_id: { type: "string" } }, required: ["intent_id"] },
+    type: "function",
+    function: {
+      name: "get_budget_status",
+      description: "Current spend policy and how much of today's budget is left.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "request_purchase",
+      description:
+        "Request to buy one catalog item. The policy engine decides: ALLOW (paid immediately from the linked PayPal wallet), ESCALATE (a human must approve in PayPal), or DENY.",
+      parameters: {
+        type: "object",
+        properties: {
+          item_id: { type: "string", description: "Catalog item id" },
+          justification: { type: "string", description: "Why this purchase serves the user's goal" },
+        },
+        required: ["item_id", "justification"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "check_purchase_status",
+      description: "Look up the current status of an earlier purchase intent.",
+      parameters: { type: "object", properties: { intent_id: { type: "string" } }, required: ["intent_id"] },
+    },
   },
 ];
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const handlers: Record<string, (input: any) => unknown | Promise<unknown>> = {
-  search_catalog: ({ query }: { query: string }) => searchCatalog(query ?? ""),
+  search_catalog: ({ query }: { query?: string }) =>
+    searchCatalog(String(query ?? "")).map((i) => ({ id: i.id, name: i.name, vendor: i.vendor, category: i.category, price: i.price, currency: i.currency })),
   get_budget_status: () => {
     const p = db.getPolicy();
     const spent = db.spentToday();
@@ -64,50 +86,105 @@ export interface ToolTrace {
   output: unknown;
 }
 
+type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
+
 // One shared conversation is enough for a single-user demo.
-const g = globalThis as unknown as { __allowanceChat?: Anthropic.MessageParam[] };
+const g = globalThis as unknown as { __allowanceChat?: Msg[] };
 export const resetChat = () => {
   g.__allowanceChat = [];
 };
 
+const MAX_HISTORY = 30;
+
+/** Keep free-tier token usage down: drop the oldest turns, always starting at a user message. */
+function trimHistory(messages: Msg[]) {
+  if (messages.length <= MAX_HISTORY) return;
+  let cut = messages.length - MAX_HISTORY;
+  while (cut < messages.length && messages[cut].role !== "user") cut++;
+  messages.splice(0, cut);
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function client() {
+  const apiKey = process.env.LLM_API_KEY;
+  if (!apiKey) throw new Error("LLM_API_KEY is not set (see .env.example)");
+  return new OpenAI({
+    apiKey,
+    baseURL: process.env.LLM_BASE_URL ?? DEFAULT_BASE_URL,
+    timeout: 45_000,
+    maxRetries: 2, // SDK retries 429 / 5xx with backoff
+  });
+}
+
+/** One model call. Retries when an open model emits a malformed tool call. */
+async function complete(llm: OpenAI, messages: Msg[]) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await llm.chat.completions.create({
+        model: process.env.LLM_MODEL ?? DEFAULT_MODEL,
+        temperature: 0.2,
+        max_tokens: 1024,
+        messages: [{ role: "system", content: SYSTEM }, ...messages],
+        tools,
+        tool_choice: "auto",
+      });
+    } catch (e) {
+      if (e instanceof OpenAI.APIError) {
+        const malformedToolCall = e.status === 400 && /tool_use_failed|failed_generation|tool call/i.test(`${e.code} ${e.message}`);
+        if (malformedToolCall && attempt < 2) {
+          await sleep(300);
+          continue;
+        }
+        if (e.status === 429) {
+          const wait = e.headers?.["retry-after"];
+          throw new Error(`The free model quota is busy${wait ? `, try again in ${wait}s` : ", try again in a minute"}.`);
+        }
+        if (e.status === 401) throw new Error("The LLM API key was rejected (401). Check LLM_API_KEY.");
+        if (malformedToolCall) throw new Error("The model produced a malformed tool call three times. Try rephrasing.");
+      }
+      throw e;
+    }
+  }
+}
+
 export async function runAgent(userText: string): Promise<{ reply: string; trace: ToolTrace[] }> {
-  if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not set");
-  const anthropic = new Anthropic();
+  const llm = client();
   const messages = (g.__allowanceChat ??= []);
+  trimHistory(messages);
   const checkpoint = messages.length;
   messages.push({ role: "user", content: userText });
   const trace: ToolTrace[] = [];
 
   try {
     for (let round = 0; round < 8; round++) {
-      const res = await anthropic.messages.create({
-        model: process.env.MODEL ?? "claude-sonnet-5-5",
-        max_tokens: 1024,
-        system: SYSTEM,
-        tools,
-        messages,
+      const res = await complete(llm, messages);
+      const msg = res.choices[0]?.message;
+      if (!msg) throw new Error("The model returned no message");
+
+      const calls = (msg.tool_calls ?? []).filter((c) => c.type === "function");
+      messages.push({
+        role: "assistant",
+        content: msg.content ?? "",
+        ...(calls.length ? { tool_calls: calls } : {}),
       });
-      messages.push({ role: "assistant", content: res.content });
 
-      if (res.stop_reason !== "tool_use") {
-        const reply = res.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n");
-        return { reply, trace };
-      }
+      if (!calls.length) return { reply: msg.content?.trim() || "(no reply)", trace };
 
-      const results: Anthropic.ToolResultBlockParam[] = [];
-      for (const b of res.content) {
-        if (b.type !== "tool_use") continue;
+      // Run tool calls one at a time, in order, so the policy sees each purchase before the next.
+      for (const c of calls) {
+        let input: unknown = {};
         let output: unknown;
         try {
-          const h = handlers[b.name];
-          output = h ? await h(b.input) : { error: `Unknown tool ${b.name}` };
+          input = c.function.arguments ? JSON.parse(c.function.arguments) : {};
+          const h = handlers[c.function.name];
+          output = h ? await h(input) : { error: `Unknown tool ${c.function.name}` };
         } catch (e) {
           output = { error: e instanceof Error ? e.message : String(e) };
         }
-        trace.push({ name: b.name, input: b.input, output });
-        results.push({ type: "tool_result", tool_use_id: b.id, content: JSON.stringify(output) });
+        trace.push({ name: c.function.name, input, output });
+        messages.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(output) });
       }
-      messages.push({ role: "user", content: results });
     }
     return { reply: "I stopped after too many tool calls. Check the ledger for what happened.", trace };
   } catch (e) {

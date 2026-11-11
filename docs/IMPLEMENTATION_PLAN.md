@@ -37,7 +37,7 @@ Repo: https://gitlab.com/kananramazanov/allowance · Team chat: ______ · Submis
   3. The member's owned files, and that other files are off-limits except where the task says so.
   4. The task's goal, steps and "Done when", verbatim.
   5. Any contract from section 5 that the task uses or changes.
-  6. "Check current documentation for PayPal, the Anthropic SDK, AG Grid and Next.js instead of assuming APIs. This repo uses Next.js 16, which has breaking changes; its docs are in `node_modules/next/dist/docs/`."
+  6. "Check current documentation for PayPal, the `openai` npm SDK (used against Groq's OpenAI-compatible API), AG Grid and Next.js instead of assuming APIs. This repo uses Next.js 16, which has breaking changes; its docs are in `node_modules/next/dist/docs/`."
   7. "When finished, run `npm run lint && npm run build` (and `npm test` once it exists). Report exactly what you verified and what you could not verify. Do not mock PayPal or LLM responses to make something pass. Stop after this task."
 - **Split big tasks.** If a task looks longer than about 90 minutes of agent work, split it into 2–3 prompts, run in order, each ending in a commit.
 - **Match the tool.** Claude Code reads `CLAUDE.md` (which imports `AGENTS.md`); Antigravity and Codex read `AGENTS.md`. Keep prompts tool-neutral except where the teammate asks otherwise.
@@ -102,7 +102,7 @@ Official rules: https://paypalaihackathon.devpost.com/rules
 
 ## 3. Repo state at the start
 
-Next.js 16 (App Router, TypeScript, Tailwind 4), Anthropic SDK, AG Grid Community 36, JSON-file store. `npm run lint` and `npm run build` pass. The policy engine passed six manual cases. **Nothing that calls PayPal or the LLM has been run yet, and the UI has never been opened in a browser.** Treat that code as a first draft to verify.
+Next.js 16 (App Router, TypeScript, Tailwind 4), the `openai` SDK pointed at Groq's free tier (any OpenAI-compatible endpoint works), AG Grid Community 36, JSON-file store. `npm run lint` and `npm run build` pass. The policy engine passed six manual cases. **Nothing that calls PayPal or the LLM has been run yet, and the UI has never been opened in a browser.** Treat that code as a first draft to verify.
 
 | File | What it is | Owner |
 |---|---|---|
@@ -260,7 +260,7 @@ Owns: `lib/paypal.ts`, `app/api/paypal/*`, `app/api/vault/*`, `scripts/*`, `rend
   2. Create a second Personal account for judges (`judge-…@personal.example.com`). Don't share its password yet.
   3. Create a REST app named "Allowance" under the Business account. Copy the client ID and secret.
   4. Fill `.env.local` and run `npm run smoke:paypal`.
-  5. Send all teammates the `.env.local` values, the Personal login and an Anthropic key, through a private channel.
+  5. Send all teammates the `.env.local` values, the Personal login and the Groq API key (`LLM_API_KEY`), through a private channel. The LLM is Groq's free tier, so nobody pays anything.
 - Done when: every member's `npm run smoke:paypal` prints an order ID and an approve URL.
 - Handoff: **"1.1 done: credentials sent, smoke test passes."** Unblocks 1.2, 2.2, 3.1.
 
@@ -388,9 +388,10 @@ Owns: `lib/agent.ts`, `app/api/agent/*`, `scripts/demo-check.ts` (new), `docs/RE
 #### 3.1 Verify the tool loop against the API
 - **P0** · Phase 1 · Depends on: 1.1 · Files: `lib/agent.ts`, `app/api/agent/route.ts`
 - Steps:
-  1. Check the installed Anthropic SDK's tool-use types and confirm the `MODEL` value is a valid model ID.
+  1. Confirm in the Groq console that `LLM_MODEL` (default `llama-3.3-70b-versatile`) is available to your key and supports tool calling. Groq's model lineup changes, so if it isn't, pick another tool-calling model from its docs and say so in chat. If tool calls are unreliable, try `openai/gpt-oss-120b`, or switch provider with `LLM_BASE_URL` / `LLM_MODEL`.
+  1b. The agent was ported to an OpenAI-compatible client before the build started (`lib/agent.ts`). It was tested only against a scripted local server, so this task is the first run against the real model. Watch for malformed tool calls and for free-tier rate limits (HTTP 429).
   2. Send the three demo prompts (section 12) with `curl` to `POST /api/agent`. Record the tool trace and reply for each.
-  3. Confirm history stays valid across turns: every `tool_use` has a `tool_result`. Confirm a forced API error (bad key) doesn't corrupt the next turn.
+  3. Confirm history stays valid across turns: every assistant tool call has a matching tool message. Confirm a forced API error (bad key) doesn't corrupt the next turn.
   4. Confirm `{ reset: true }` clears the history.
 - Done when: the three prompts produce the expected verdicts through the agent, across at least two consecutive turns.
 - Handoff: **"3.1 done: agent verified."**
@@ -567,7 +568,7 @@ Default policy: auto-approve up to $25, $100 daily budget, `gift_cards` blocked.
 
 **What it does.** Allowance gives an AI agent a PayPal-backed budget with rules. You give the agent a goal. It finds what to buy and requests each purchase with a written justification. A deterministic policy engine decides. In-policy purchases are paid instantly from a vaulted PayPal wallet. Over-limit purchases pause and send a human a PayPal approval link. Out-of-policy purchases are denied. Every decision lands in a live audit ledger with the agent's reasoning, the rule that fired and the PayPal capture ID.
 
-**How we built it.** Next.js and TypeScript. The agent is Claude with four tools. It never touches PayPal directly, and prices come from the catalog rather than the model. PayPal integration:
+**How we built it.** Next.js and TypeScript. The agent is an LLM (Llama on Groq's free tier, swappable for any OpenAI-compatible model) with four tools. It never touches PayPal directly, and prices come from the catalog rather than the model. PayPal integration:
 - Orders v2 for all payments.
 - Vault v3 payment tokens for unattended in-policy captures.
 - The standard approval flow for human escalation.
@@ -599,7 +600,7 @@ The ledger is AG Grid and the app runs on Render. Four of us built it in paralle
 | 1:15–1:50 | Prompt 2 → amber row → Approve → PayPal checkout → green | "Over the limit, so the agent stops and asks. One click in PayPal." |
 | 1:50–2:05 | Prompt 3 → red row | "Blocked category. Denied, with the reason logged." |
 | 2:05–2:20 | Detail panel timeline, then the same capture in the PayPal sandbox dashboard | "Every decision is auditable down to the PayPal capture ID." |
-| 2:20–2:40 | Architecture diagram | "Claude proposes. The policy engine decides. PayPal executes." |
+| 2:20–2:40 | Architecture diagram | "The model proposes. The policy engine decides. PayPal executes." |
 | 2:40–2:50 | Repo URL and live URL | "Allowance. Spending rules for the agent economy." |
 
 ---
@@ -610,6 +611,7 @@ The ledger is AG Grid and the app runs on Render. Four of us built it in paralle
 |---|---|---|---|
 | Vault doesn't work in sandbox | 1.3 not done at 90 min | Approval-link fallback (already built); adjust the video line | M1 |
 | LLM errors during recording | 500s from `/api/agent` | Retry from 3.5; record in short takes | M3 |
+| Groq free-tier limit hit (HTTP 429) | "The free model quota is busy" in chat | Wait the `retry-after` seconds; don't run `demo-check` in a tight loop; keep prompts short; fallback `LLM_BASE_URL`/`LLM_MODEL` to Gemini Flash for local runs (see `.env.example`) | M3 |
 | Render cold start while judges test | First load over 30 s | Keep-alive from 1.5; note in README | M1 |
 | Ledger lost on Render restart | Empty ledger after idle | Acceptable; documented in README | M2 |
 | Merge conflicts | Same file on two branches | File ownership; merge only at gates | M2 |

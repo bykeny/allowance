@@ -8,15 +8,17 @@ services:
     envVars:
       - key: PAYPAL_BASE
         value: https://api-m.sandbox.paypal.com
-      - key: MODEL
-        value: claude-sonnet-5-5
+      - key: LLM_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: LLM_MODEL
+        value: llama-3.3-70b-versatile
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET
         sync: false
       - key: PAYPAL_WEBHOOK_ID
         sync: false
-      - key: ANTHROPIC_API_KEY
+      - key: LLM_API_KEY
         sync: false
       - key: APP_URL
         sync: false
