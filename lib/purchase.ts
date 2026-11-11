@@ -86,6 +86,6 @@ export async function requestPurchase(input: PurchaseInput) {
           ? e.message
           : String(e);
     db.updateIntent(intent.id, { status: "FAILED", error });
-    return { intent_id: intent.id, ...verdict, status: "FAILED", error };
+    return { intent_id: intent.id, ...verdict, reason, status: "FAILED", error };
   }
 }
