@@ -1,8 +1,30 @@
 // PayPal Sandbox gateway: OAuth, Orders v2, Vault v3, webhook verification.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const BASE = () => process.env.PAYPAL_BASE ?? "https://api-m.sandbox.paypal.com";
 const APP_URL = () => process.env.APP_URL ?? "http://localhost:3000";
 
 let cached: { token: string; exp: number } | null = null;
+
+/** Any non-2xx PayPal API response. Message is short and never contains secrets or headers. */
+export class PayPalError extends Error {
+  status: number;
+  /** PayPal's error name, e.g. UNPROCESSABLE_ENTITY. Shadows Error.name on purpose. */
+  override name: string;
+  issue?: string;
+  /** PayPal's human-readable explanation of the first issue (details[0].description). */
+  description?: string;
+  debugId?: string;
+  constructor(status: number, path: string, body: any) {
+    const name = body?.name ?? body?.error ?? "PAYPAL_ERROR";
+    const issue = body?.details?.[0]?.issue;
+    super(`PayPal ${status} on ${path.split("?")[0]}: ${name}${issue ? ` / ${issue}` : ""}`);
+    this.status = status;
+    this.name = name;
+    this.issue = issue;
+    this.description = body?.details?.[0]?.description ?? body?.message ?? body?.error_description;
+    this.debugId = body?.debug_id;
+  }
+}
 
 async function token(): Promise<string> {
   if (cached && Date.now() < cached.exp) return cached.token;
@@ -17,32 +39,46 @@ async function token(): Promise<string> {
     body: "grant_type=client_credentials",
   });
   const j = await r.json();
-  if (!r.ok) throw new Error(`PayPal auth ${r.status}: ${JSON.stringify(j)}`);
+  if (!r.ok) throw new PayPalError(r.status, "/v1/oauth2/token", j);
   cached = { token: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
   return cached.token;
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-async function pp(path: string, body?: unknown, requestId?: string): Promise<any> {
+async function pp(
+  path: string,
+  body?: unknown,
+  requestId?: string,
+  extra: Record<string, string> = {},
+  retried = false
+): Promise<any> {
   const r = await fetch(`${BASE()}${path}`, {
     method: body ? "POST" : "GET",
     headers: {
       Authorization: `Bearer ${await token()}`,
       "Content-Type": "application/json",
       ...(requestId ? { "PayPal-Request-Id": requestId } : {}), // idempotency key
+      ...extra,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (r.status === 401 && !retried) {
+    cached = null; // token expired or revoked: refresh once
+    return pp(path, body, requestId, extra, true);
+  }
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`PayPal ${r.status} on ${path}: ${JSON.stringify(j)}`);
+  if (!r.ok) throw new PayPalError(r.status, path, j);
   return j;
 }
 
 const link = (j: any, ...rels: string[]) =>
   j.links?.find((l: any) => rels.includes(l.rel))?.href as string | undefined;
 
-export const captureIdOf = (order: any): string | undefined =>
-  order?.purchase_units?.[0]?.payments?.captures?.[0]?.id;
+export function captureResult(order: any): { captureId?: string; captureStatus?: string } {
+  const c = order?.purchase_units?.[0]?.payments?.captures?.[0];
+  return { captureId: c?.id, captureStatus: c?.status };
+}
+
+export const captureIdOf = (order: any): string | undefined => captureResult(order).captureId;
 
 /**
  * Create an order.
@@ -85,12 +121,33 @@ export async function createOrder(o: {
     id: j.id as string,
     status: j.status as string,
     approveUrl: link(j, "payer-action", "approve"),
-    captureId: captureIdOf(j),
+    ...captureResult(j),
   };
 }
 
-export const captureOrder = (orderId: string) =>
-  pp(`/v2/checkout/orders/${orderId}/capture`, {}, `capture-${orderId}`);
+/** Capture an approved order. Safe to repeat: an already-captured order is returned as-is. */
+export async function captureOrder(orderId: string) {
+  // Opt-in sandbox negative testing, e.g. PAYPAL_NEGATIVE_TEST=INSTRUMENT_DECLINED. Never sent to live.
+  const mock = process.env.PAYPAL_NEGATIVE_TEST;
+  const extra: Record<string, string> =
+    mock && BASE() === "https://api-m.sandbox.paypal.com"
+      ? { "PayPal-Mock-Response": JSON.stringify({ mock_application_codes: mock }) }
+      : {};
+  try {
+    return await pp(
+      `/v2/checkout/orders/${orderId}/capture`,
+      {},
+      // A mocked failure must not be cached under the real capture's idempotency key.
+      mock && extra["PayPal-Mock-Response"] ? `capture-${orderId}-mock-${Date.now()}` : `capture-${orderId}`,
+      extra
+    );
+  } catch (e) {
+    if (e instanceof PayPalError && e.status === 422 && e.issue === "ORDER_ALREADY_CAPTURED") {
+      return getOrder(orderId);
+    }
+    throw e;
+  }
+}
 
 export const getOrder = (orderId: string) => pp(`/v2/checkout/orders/${orderId}`);
 
@@ -99,15 +156,22 @@ export async function createSetupToken() {
   const j = await pp("/v3/vault/setup-tokens", {
     payment_source: {
       paypal: {
+        description: "Allowance: pay in-policy purchases from your PayPal wallet",
+        permit_multiple_payment_tokens: false,
+        usage_pattern: "IMMEDIATE",
         usage_type: "MERCHANT",
+        customer_type: "CONSUMER",
         experience_context: {
+          brand_name: "Allowance",
+          locale: "en-US",
+          shipping_preference: "NO_SHIPPING",
           return_url: `${APP_URL()}/api/vault/return`,
-          cancel_url: `${APP_URL()}/?wallet=cancelled`,
+          cancel_url: `${APP_URL()}/api/vault/return?cancelled=1`,
         },
       },
     },
   });
-  return { id: j.id as string, approveUrl: link(j, "approve", "payer-action") };
+  return { id: j.id as string, status: j.status as string, approveUrl: link(j, "approve", "payer-action") };
 }
 
 /** Step 2: exchange the approved setup token for a reusable payment token (the vault_id). */

@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { findItem } from "./catalog";
 import { evaluate } from "./policy";
-import { captureIdOf, captureOrder, createOrder } from "./paypal";
+import { captureOrder, captureResult, createOrder, PayPalError } from "./paypal";
 
 export interface PurchaseInput {
   item_id: string;
@@ -54,8 +54,18 @@ export async function requestPurchase(input: PurchaseInput) {
     });
 
     if (vaultId) {
-      let captureId = order.captureId;
-      if (order.status !== "COMPLETED") captureId = captureIdOf(await captureOrder(order.id));
+      // Vaulted orders usually complete at create; otherwise capture. Only a COMPLETED capture counts as paid.
+      const { captureId, captureStatus } =
+        order.status === "COMPLETED" && order.captureId
+          ? { captureId: order.captureId, captureStatus: order.captureStatus }
+          : captureResult(await captureOrder(order.id));
+      if (captureStatus !== "COMPLETED") {
+        const error = `Vault payment not completed: order ${order.status}, capture ${captureStatus ?? "missing"}${
+          captureStatus === "DECLINED" || captureStatus === "FAILED" ? " (the PayPal wallet's funding source was declined)" : ""
+        }`;
+        db.updateIntent(intent.id, { status: "FAILED", orderId: order.id, captureId, paidVia: "VAULT", error });
+        return { intent_id: intent.id, decision: "ALLOW", reason, status: "FAILED", error };
+      }
       db.updateIntent(intent.id, { status: "CAPTURED", orderId: order.id, captureId, paidVia: "VAULT" });
       return { intent_id: intent.id, decision: "ALLOW", reason, status: "CAPTURED", order_id: order.id };
     }
@@ -69,7 +79,12 @@ export async function requestPurchase(input: PurchaseInput) {
       note: "A human has been shown an approval button in the dashboard. Do not retry.",
     };
   } catch (e) {
-    const error = e instanceof Error ? e.message : String(e);
+    const error =
+      e instanceof PayPalError
+        ? `${e.name}${e.issue ? ` / ${e.issue}` : ""} (debug_id ${e.debugId ?? "none"}): ${e.message}`
+        : e instanceof Error
+          ? e.message
+          : String(e);
     db.updateIntent(intent.id, { status: "FAILED", error });
     return { intent_id: intent.id, ...verdict, status: "FAILED", error };
   }
