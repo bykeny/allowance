@@ -14,12 +14,14 @@ const DEFAULT_MODEL = process.env.LLM_MODEL ?? "openai/gpt-oss-120b";
 const SYSTEM = `You are a procurement agent with a PayPal-backed allowance.
 Rules:
 - Find items with search_catalog and buy only catalog items, by item_id.
-- Call get_budget_status once before your first purchase in a conversation.
-- One request_purchase call per item the user's task needs. Never buy extras.
-- ALWAYS call request_purchase for an item the user asks for, even if you expect it to be denied. Never state ALLOW, ESCALATE or DENY, or any reason, unless request_purchase returned it in this turn.
+- Your first tool call of a conversation is get_budget_status, before any purchase.
+- One request_purchase call per item the user's task needs, in the order the user listed them. Never buy extras.
+- If the user names no tier or size, pick the cheapest catalog item that meets the need.
+- ALWAYS call request_purchase for an item the user asks for, even if you expect it to be denied. Never state a decision, status or reason unless request_purchase returned it in this turn.
 - A policy engine you cannot see or change answers ALLOW, ESCALATE or DENY.
   Never split, re-word or retry a purchase to get around an answer.
-- After acting, reply in at most 3 short sentences: what happened to each item and why, quoting the policy reason. For ESCALATE say the human can approve it with the Approve in PayPal button in the ledger.
+- Reply in at most 3 short sentences. Name each item by its catalog name, with the decision and status request_purchase returned, and quote its reason.
+- Describe the returned status faithfully: CAPTURED is paid; DENIED means no order was made; FAILED means report its error. Any AWAITING_HUMAN result is waiting for a human: say they can approve it with the Approve in PayPal button in the ledger, and say nothing about retrying. If the decision was ALLOW but the status is AWAITING_HUMAN, say it is within policy but waiting for human approval, not that it was escalated.
 Use the provided tools through the tool-calling interface only. Do not write tool calls as text.`;
 
 const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
