@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Chat from "@/components/Chat";
+import IntentDetail from "@/components/IntentDetail";
 import Ledger from "@/components/Ledger";
 import PolicyBar from "@/components/PolicyBar";
 import type { Intent, Policy } from "@/lib/types";
@@ -17,6 +18,8 @@ export default function Home() {
   const [notice, setNotice] = useState<string | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const [offline, setOffline] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const closeDetail = useCallback(() => setSelectedId(null), []);
 
   const refresh = useCallback(async () => {
     try {
@@ -83,6 +86,7 @@ export default function Home() {
   async function reset() {
     await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reset: true }) });
     setResetKey((k) => k + 1);
+    setSelectedId(null);
     refresh();
   }
 
@@ -102,6 +106,8 @@ export default function Home() {
         )}
       </div>
     );
+
+  const selected = selectedId ? state.intents.find((i) => i.id === selectedId) : undefined;
 
   return (
     <div className="flex h-screen flex-col">
@@ -129,8 +135,13 @@ export default function Home() {
           <Chat key={resetKey} onActivity={refresh} />
         </aside>
         <main className="flex min-w-0 flex-1 flex-col p-4">
-          <Ledger intents={state.intents} />
+          <Ledger
+            intents={state.intents}
+            selectedId={selected?.id ?? null}
+            onSelect={(id) => setSelectedId((cur) => (cur === id ? null : id))}
+          />
         </main>
+        {selected && <IntentDetail key={selected.id} intent={selected} onClose={closeDetail} />}
       </div>
     </div>
   );
