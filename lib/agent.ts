@@ -118,8 +118,8 @@ function client() {
   return new OpenAI({
     apiKey,
     baseURL: process.env.LLM_BASE_URL ?? DEFAULT_BASE_URL,
-    timeout: 45_000,
-    maxRetries: 2, // SDK retries 429 / 5xx with backoff
+    timeout: 30_000, // per attempt
+    maxRetries: 1, // SDK retries once on 408 / 409 / 429 / 5xx, timeouts and connection errors
   });
 }
 
@@ -148,6 +148,12 @@ async function complete(llm: OpenAI, messages: Msg[]) {
         }
         if (e.status === 401) throw new Error("The LLM API key was rejected (401). Check LLM_API_KEY.");
         if (malformedToolCall) throw new Error("The model produced a malformed tool call three times. Try rephrasing.");
+        if (e instanceof OpenAI.APIConnectionTimeoutError)
+          throw new Error("The model did not answer within 30 seconds, even after one retry. Try again in a minute.");
+        if (e instanceof OpenAI.APIConnectionError)
+          throw new Error("Could not reach the model provider, even after one retry. Check the network and try again.");
+        if (e.status && e.status >= 500)
+          throw new Error(`The model provider is overloaded or down (HTTP ${e.status}), even after one retry. Try again in a minute.`);
       }
       throw e;
     }
