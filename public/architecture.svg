@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title>Allowance architecture: the model proposes, the policy engine decides, PayPal executes</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#44403c"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#b45309"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#15803d"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="900" fill="#f6f5f1"/>
+
+  <!-- Title -->
+  <g transform="translate(60 52)">
+    <rect width="40" height="40" rx="10" fill="#1c1917"/>
+    <path d="M11.25 27.5 L20 11.25 L28.75 27.5" fill="none" stroke="#fafaf9" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M14.75 21.9 H25.25" stroke="#34d399" stroke-width="3.2" stroke-linecap="round"/>
+    <text x="56" y="20" font-size="28" font-weight="700" fill="#1c1917">Allowance</text>
+    <text x="56" y="42" font-size="16" fill="#78716c">A spend firewall between an AI agent and a PayPal wallet</text>
+  </g>
+
+  <!-- 1. Dashboard -->
+  <g transform="translate(60 170)">
+    <rect width="300" height="440" rx="16" fill="#ffffff" stroke="#d6d3d1" stroke-width="1.5"/>
+    <circle cx="32" cy="36" r="14" fill="#1c1917"/><text x="32" y="41" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+    <text x="56" y="34" font-size="20" font-weight="700" fill="#1c1917">Dashboard</text>
+    <text x="56" y="54" font-size="13" fill="#78716c">Next.js · React</text>
+    <g font-size="15" fill="#292524">
+      <rect x="20" y="86" width="260" height="56" rx="10" fill="#f5f5f4"/>
+      <text x="36" y="110" font-weight="600">Chat</text>
+      <text x="36" y="130" font-size="13" fill="#78716c">a goal in, live tool steps out</text>
+      <rect x="20" y="154" width="260" height="56" rx="10" fill="#f5f5f4"/>
+      <text x="36" y="178" font-weight="600">Policy editor</text>
+      <text x="36" y="198" font-size="13" fill="#78716c">limits, vendors, blocked categories</text>
+      <rect x="20" y="222" width="260" height="56" rx="10" fill="#f5f5f4"/>
+      <text x="36" y="246" font-weight="600">Audit ledger</text>
+      <text x="36" y="266" font-size="13" fill="#78716c">AG Grid · every request, every verdict</text>
+    </g>
+    <text x="20" y="320" font-size="13" fill="#57534e">The human sets the rules and</text>
+    <text x="20" y="340" font-size="13" fill="#57534e">approves anything escalated.</text>
+  </g>
+
+  <!-- 2. Agent -->
+  <g transform="translate(440 170)">
+    <rect width="300" height="440" rx="16" fill="#ffffff" stroke="#d6d3d1" stroke-width="1.5"/>
+    <circle cx="32" cy="36" r="14" fill="#1c1917"/><text x="32" y="41" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+    <text x="56" y="34" font-size="20" font-weight="700" fill="#1c1917">Agent</text>
+    <text x="56" y="54" font-size="13" fill="#78716c">LLM tool loop · OpenAI-compatible API</text>
+    <text x="20" y="100" font-size="12" font-weight="700" fill="#78716c" letter-spacing="1">ITS ONLY TOOLS</text>
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#292524">
+      <rect x="20" y="114" width="260" height="34" rx="8" fill="#f5f5f4"/><text x="34" y="136">search_catalog</text>
+      <rect x="20" y="156" width="260" height="34" rx="8" fill="#f5f5f4"/><text x="34" y="178">get_budget_status</text>
+      <rect x="20" y="198" width="260" height="34" rx="8" fill="#1c1917"/><text x="34" y="220" fill="#fafaf9" font-weight="700">request_purchase</text>
+      <rect x="20" y="240" width="260" height="34" rx="8" fill="#f5f5f4"/><text x="34" y="262">check_purchase_status</text>
+    </g>
+    <rect x="20" y="300" width="260" height="104" rx="10" fill="#fef2f2" stroke="#fecaca"/>
+    <text x="36" y="326" font-size="14" font-weight="700" fill="#991b1b">Cannot</text>
+    <text x="36" y="348" font-size="13" fill="#7f1d1d">· call PayPal</text>
+    <text x="36" y="368" font-size="13" fill="#7f1d1d">· set a price, vendor or category</text>
+    <text x="36" y="388" font-size="13" fill="#7f1d1d">· change its own limits</text>
+  </g>
+
+  <!-- 3. Policy engine -->
+  <g transform="translate(820 170)">
+    <rect width="330" height="440" rx="16" fill="#1c1917"/>
+    <circle cx="32" cy="36" r="14" fill="#fafaf9"/><text x="32" y="41" font-size="14" font-weight="700" fill="#1c1917" text-anchor="middle">3</text>
+    <text x="56" y="34" font-size="20" font-weight="700" fill="#fafaf9">Policy engine</text>
+    <text x="56" y="54" font-size="13" fill="#a8a29e">deterministic code · no LLM inside</text>
+    <text x="20" y="100" font-size="13" fill="#d6d3d1">Price, vendor and category come from</text>
+    <text x="20" y="118" font-size="13" fill="#d6d3d1">the catalog, never from the model.</text>
+
+    <rect x="20" y="138" width="290" height="70" rx="10" fill="#052e16" stroke="#16a34a"/>
+    <text x="36" y="164" font-size="15" font-weight="800" fill="#4ade80" letter-spacing="0.5">ALLOW</text>
+    <text x="36" y="186" font-size="13" fill="#bbf7d0">in policy → paid from the linked</text>
+    <text x="36" y="202" font-size="13" fill="#bbf7d0">wallet, no human present</text>
+
+    <rect x="20" y="218" width="290" height="70" rx="10" fill="#451a03" stroke="#f59e0b"/>
+    <text x="36" y="244" font-size="15" font-weight="800" fill="#fbbf24" letter-spacing="0.5">ESCALATE</text>
+    <text x="36" y="266" font-size="13" fill="#fde68a">over limit, over budget or duplicate</text>
+    <text x="36" y="282" font-size="13" fill="#fde68a">→ a human approves in PayPal</text>
+
+    <rect x="20" y="298" width="290" height="70" rx="10" fill="#450a0a" stroke="#ef4444"/>
+    <text x="36" y="324" font-size="15" font-weight="800" fill="#f87171" letter-spacing="0.5">DENY</text>
+    <text x="36" y="346" font-size="13" fill="#fecaca">vendor not allowed or category</text>
+    <text x="36" y="362" font-size="13" fill="#fecaca">blocked → no order, reason logged</text>
+
+    <text x="20" y="404" font-size="13" fill="#a8a29e">Every verdict and event is written</text>
+    <text x="20" y="422" font-size="13" fill="#a8a29e">to the audit ledger.</text>
+  </g>
+
+  <!-- 4. PayPal gateway -->
+  <g transform="translate(1230 170)">
+    <rect width="310" height="440" rx="16" fill="#ffffff" stroke="#0070ba" stroke-width="2"/>
+    <circle cx="32" cy="36" r="14" fill="#0070ba"/><text x="32" y="41" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+    <text x="56" y="34" font-size="20" font-weight="700" fill="#1c1917">PayPal gateway</text>
+    <text x="56" y="54" font-size="13" fill="#78716c">REST APIs · sandbox</text>
+    <g font-size="15" fill="#292524">
+      <rect x="20" y="86" width="270" height="56" rx="10" fill="#eff6ff"/>
+      <text x="36" y="110" font-weight="600">Orders v2</text>
+      <text x="36" y="130" font-size="13" fill="#57534e">create and capture every payment</text>
+      <rect x="20" y="154" width="270" height="56" rx="10" fill="#eff6ff"/>
+      <text x="36" y="178" font-weight="600">Vault v3 payment tokens</text>
+      <text x="36" y="198" font-size="13" fill="#57534e">unattended capture for ALLOW</text>
+      <rect x="20" y="222" width="270" height="56" rx="10" fill="#eff6ff"/>
+      <text x="36" y="246" font-weight="600">Checkout approval</text>
+      <text x="36" y="266" font-size="13" fill="#57534e">human-in-the-loop for ESCALATE</text>
+      <rect x="20" y="290" width="270" height="56" rx="10" fill="#eff6ff"/>
+      <text x="36" y="314" font-weight="600">Signed webhooks</text>
+      <text x="36" y="334" font-size="13" fill="#57534e">verified settlement status</text>
+    </g>
+    <text x="20" y="386" font-size="13" fill="#57534e">Order and capture IDs flow back</text>
+    <text x="20" y="404" font-size="13" fill="#57534e">into the ledger.</text>
+  </g>
+
+  <!-- Forward arrows -->
+  <g font-size="13" fill="#44403c">
+    <line x1="364" y1="262" x2="434" y2="262" stroke="#44403c" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="399" y="250" text-anchor="middle" font-weight="600">goal</text>
+
+    <line x1="744" y1="382" x2="814" y2="382" stroke="#44403c" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="779" y="370" text-anchor="middle" font-weight="600">item_id</text>
+    <text x="779" y="402" text-anchor="middle" font-weight="600">+ reason</text>
+
+    <line x1="1154" y1="342" x2="1224" y2="342" stroke="#15803d" stroke-width="2" marker-end="url(#arrow-green)"/>
+    <text x="1189" y="332" text-anchor="middle" font-weight="700" fill="#15803d">pay</text>
+    <line x1="1154" y1="422" x2="1224" y2="422" stroke="#b45309" stroke-width="2" marker-end="url(#arrow-amber)"/>
+    <text x="1189" y="412" text-anchor="middle" font-weight="700" fill="#b45309">ask</text>
+  </g>
+
+  <!-- Ledger feedback loop -->
+  <path d="M985 614 V690 H210 V618" fill="none" stroke="#44403c" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#arrow)"/>
+  <rect x="395" y="676" width="420" height="28" rx="14" fill="#f6f5f1"/>
+  <text x="605" y="695" font-size="14" fill="#44403c" text-anchor="middle" font-weight="600">live audit ledger · every request, verdict, PayPal ID</text>
+
+  <!-- Human approval loop -->
+  <line x1="1340" y1="614" x2="1340" y2="680" stroke="#b45309" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <line x1="1430" y1="684" x2="1430" y2="618" stroke="#15803d" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <rect x="1230" y="684" width="310" height="62" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="1385" y="711" font-size="15" font-weight="700" fill="#78350f" text-anchor="middle">Human approves in PayPal</text>
+  <text x="1385" y="731" font-size="13" fill="#92400e" text-anchor="middle">one click → returns → captured</text>
+
+  <!-- Tagline -->
+  <line x1="60" y1="790" x2="1540" y2="790" stroke="#d6d3d1"/>
+  <text x="800" y="845" font-size="30" text-anchor="middle" fill="#1c1917">
+    The model <tspan font-weight="700">proposes</tspan>. The policy engine <tspan font-weight="700">decides</tspan>. PayPal <tspan font-weight="700" fill="#0070ba">executes</tspan>.
+  </text>
+</svg>
