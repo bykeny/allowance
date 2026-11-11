@@ -5,3 +5,20 @@ body {
   color: #1c1b19;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
+
+/* Ledger outcome tones: a coloured edge plus a light tint, readable in a 1080p recording. */
+.ag-row.ledger-row-ok { background-color: #f0fdf4; box-shadow: inset 4px 0 0 #16a34a; }
+.ag-row.ledger-row-wait { background-color: #fffbeb; box-shadow: inset 4px 0 0 #f59e0b; }
+.ag-row.ledger-row-bad { background-color: #fef2f2; box-shadow: inset 4px 0 0 #dc2626; }
+.ag-row.ledger-row-muted { background-color: #fafaf9; box-shadow: inset 4px 0 0 #a8a29e; color: #78716c; }
+.ag-row.ledger-row-group { background-color: #f5f5f4; }
+.ag-row.ledger-row-totals { background-color: #fafaf9; font-weight: 600; }
+.ag-row.ledger-row-selected { background-color: #e7e5e4; box-shadow: inset 4px 0 0 #1c1917; }
+.ag-row:not(.ledger-row-group):not(.ledger-row-totals) { cursor: pointer; }
+
+.approve-btn { animation: approve-pulse 1.8s ease-in-out infinite; }
+@keyframes approve-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 112, 186, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(0, 112, 186, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .approve-btn { animation: none; } }
