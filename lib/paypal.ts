@@ -11,6 +11,8 @@ export class PayPalError extends Error {
   /** PayPal's error name, e.g. UNPROCESSABLE_ENTITY. Shadows Error.name on purpose. */
   override name: string;
   issue?: string;
+  /** PayPal's human-readable explanation of the first issue (details[0].description). */
+  description?: string;
   debugId?: string;
   constructor(status: number, path: string, body: any) {
     const name = body?.name ?? body?.error ?? "PAYPAL_ERROR";
@@ -19,6 +21,7 @@ export class PayPalError extends Error {
     this.status = status;
     this.name = name;
     this.issue = issue;
+    this.description = body?.details?.[0]?.description ?? body?.message ?? body?.error_description;
     this.debugId = body?.debug_id;
   }
 }
@@ -118,7 +121,7 @@ export async function createOrder(o: {
     id: j.id as string,
     status: j.status as string,
     approveUrl: link(j, "payer-action", "approve"),
-    captureId: captureIdOf(j),
+    ...captureResult(j),
   };
 }
 
@@ -153,15 +156,22 @@ export async function createSetupToken() {
   const j = await pp("/v3/vault/setup-tokens", {
     payment_source: {
       paypal: {
+        description: "Allowance: pay in-policy purchases from your PayPal wallet",
+        permit_multiple_payment_tokens: false,
+        usage_pattern: "IMMEDIATE",
         usage_type: "MERCHANT",
+        customer_type: "CONSUMER",
         experience_context: {
+          brand_name: "Allowance",
+          locale: "en-US",
+          shipping_preference: "NO_SHIPPING",
           return_url: `${APP_URL()}/api/vault/return`,
-          cancel_url: `${APP_URL()}/?wallet=cancelled`,
+          cancel_url: `${APP_URL()}/api/vault/return?cancelled=1`,
         },
       },
     },
   });
-  return { id: j.id as string, approveUrl: link(j, "approve", "payer-action") };
+  return { id: j.id as string, status: j.status as string, approveUrl: link(j, "approve", "payer-action") };
 }
 
 /** Step 2: exchange the approved setup token for a reusable payment token (the vault_id). */
