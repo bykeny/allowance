@@ -8,8 +8,8 @@ import { requestPurchase, type PurchaseInput } from "./purchase";
  * endpoint: Groq (default), Gemini's OpenAI-compatible endpoint, OpenRouter,
  * a local Ollama server... Switch with LLM_BASE_URL / LLM_API_KEY / LLM_MODEL.
  */
-const DEFAULT_BASE_URL = "https://api.groq.com/openai/v1";
-const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+const DEFAULT_BASE_URL = process.env.LLM_BASE_URL ?? "https://api.groq.com/openai/v1";
+const DEFAULT_MODEL = process.env.LLM_MODEL ?? "openai/gpt-oss-120b";
 
 const SYSTEM = `You are a procurement agent with a PayPal-backed allowance.
 Rules:
