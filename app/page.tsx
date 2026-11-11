@@ -134,8 +134,8 @@ export default function Home() {
         </button>
       )}
       <div className="flex min-h-0 flex-1">
-        <aside className="w-[380px] shrink-0 border-r border-stone-200">
-          <Chat key={resetKey} onActivity={refresh} />
+        <aside className="min-h-0 w-[380px] shrink-0 overflow-hidden border-r border-stone-200">
+          <Chat key={resetKey} onActivity={refresh} onReset={reset} />
         </aside>
         <main className="flex min-w-0 flex-1 flex-col p-4">
           <Ledger

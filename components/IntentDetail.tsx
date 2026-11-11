@@ -137,6 +137,9 @@ export default function IntentDetail({ intent, onClose }: { intent: Intent; onCl
               <div className="text-sm font-semibold">
                 {intent.decision} · {VERDICT_HEADLINE[intent.decision]}
               </div>
+              {intent.decision === "ESCALATE" && intent.status === "CAPTURED" && intent.paidVia === "HUMAN_APPROVAL" && (
+                <div className="mt-0.5 text-xs font-semibold text-emerald-700">→ approved by a human and paid</div>
+              )}
               {intent.reason && <div className="mt-0.5 text-sm">{intent.reason}</div>}
             </div>
           ) : (

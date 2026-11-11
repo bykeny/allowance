@@ -31,7 +31,7 @@ const TOOL_LABEL: Record<string, string> = {
 /** Thrown when the stream endpoint can't be used at all, before the agent ran. Safe to fall back. */
 class StreamUnavailable extends Error {}
 
-export default function Chat({ onActivity }: { onActivity: () => void }) {
+export default function Chat({ onActivity, onReset }: { onActivity: () => void; onReset: () => void }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -152,8 +152,20 @@ export default function Chat({ onActivity }: { onActivity: () => void }) {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div className="flex items-center justify-between border-b border-stone-200 bg-white px-4 py-2.5">
+        <span className="text-sm font-semibold text-stone-900">Agent</span>
+        <button
+          type="button"
+          onClick={onReset}
+          disabled={busy}
+          title="Clears the chat, the agent's memory and the ledger"
+          className="rounded-lg border border-stone-300 px-2.5 py-1 text-xs text-stone-600 hover:bg-stone-50 disabled:opacity-40"
+        >
+          Reset demo
+        </button>
+      </div>
+      <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden p-4">
         {msgs.length === 0 && (
           <div className="space-y-2 pt-4 text-sm text-stone-500">
             <p className="text-stone-700">
@@ -164,7 +176,8 @@ export default function Chat({ onActivity }: { onActivity: () => void }) {
               <button
                 key={e}
                 onClick={() => send(e)}
-                className="block w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-left text-stone-700 transition hover:border-stone-400 hover:shadow-sm"
+                disabled={busy}
+                className="block w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-left text-stone-700 transition hover:border-stone-400 hover:shadow-sm disabled:opacity-50"
               >
                 {e}
               </button>
@@ -172,14 +185,14 @@ export default function Chat({ onActivity }: { onActivity: () => void }) {
           </div>
         )}
         {msgs.map((m, i) => (
-          <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
+          <div key={i} className={`flex min-w-0 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
-              className={`max-w-[92%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm ${
+              className={`min-w-0 max-w-[92%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-xl px-3.5 py-2 text-sm ${
                 m.role === "user"
                   ? "bg-stone-900 text-white"
                   : m.role === "error"
                     ? "border border-red-200 bg-red-50 text-red-800"
-                    : "border border-stone-200 bg-white"
+                    : "border border-stone-200 bg-white text-stone-800 shadow-sm"
               }`}
             >
               {m.steps && m.steps.length > 0 && (
@@ -189,7 +202,7 @@ export default function Chat({ onActivity }: { onActivity: () => void }) {
                   ))}
                 </ol>
               )}
-              {m.text}
+              {m.role === "agent" ? renderBold(m.text) : m.text}
               {m.working && !m.text && (
                 <span className="inline-flex items-center gap-2 text-stone-400">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-stone-400" />
@@ -201,24 +214,46 @@ export default function Chat({ onActivity }: { onActivity: () => void }) {
         ))}
         <div ref={end} />
       </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(text);
-        }}
-        className="flex gap-2 border-t border-stone-200 bg-white p-3"
-      >
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Ask the agent to buy something…"
-          className="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none focus:border-stone-500"
-        />
-        <button disabled={busy || !text.trim()} className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
-          Send
-        </button>
-      </form>
+      <div className="shrink-0 border-t border-stone-200 bg-white">
+        <div className="flex flex-wrap gap-1.5 px-3 pt-3">
+          {EXAMPLES.map((e) => (
+            <button
+              key={e}
+              type="button"
+              onClick={() => send(e)}
+              disabled={busy}
+              className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[11px] text-stone-600 transition hover:border-stone-400 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            send(text);
+          }}
+          className="flex gap-2 p-3"
+        >
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Ask the agent to buy something…"
+            className="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none focus:border-[#0070ba]"
+          />
+          <button disabled={busy || !text.trim()} className="rounded-lg bg-[#0070ba] px-4 py-2 text-sm font-medium text-white hover:bg-[#005ea6] disabled:opacity-40">
+            Send
+          </button>
+        </form>
+      </div>
     </div>
+  );
+}
+
+/** Renders **bold** spans without a markdown library. */
+function renderBold(s: string) {
+  return s.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") && part.endsWith("**") && part.length > 4 ? <strong key={i}>{part.slice(2, -2)}</strong> : part
   );
 }
 
@@ -231,18 +266,22 @@ function StepRow({ step }: { step: Step }) {
     d === "ALLOW" ? "bg-emerald-600 text-white" : d === "ESCALATE" ? "bg-amber-400 text-amber-950" : d === "DENY" ? "bg-red-600 text-white" : "";
   return (
     <li>
-      <details className="rounded-md bg-stone-50 px-2 py-1 text-[11px] text-stone-600">
-        <summary className="flex cursor-pointer list-none items-center gap-2">
+      <details className="min-w-0 rounded-md bg-stone-50 px-2 py-1 text-[11px] text-stone-600">
+        <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2">
           {step.done ? (
             <span className={out?.error ? "text-red-600" : "text-emerald-600"}>{out?.error ? "✕" : "✓"}</span>
           ) : (
             <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-stone-300 border-t-stone-700" />
           )}
           <span className="whitespace-nowrap font-medium text-stone-700">{TOOL_LABEL[step.name] ?? step.name}</span>
-          {detail && <code className="min-w-0 truncate font-mono text-stone-500">{detail}</code>}
-          {d && <span className={`ml-auto rounded px-1.5 py-0.5 text-[10px] font-bold ${badge}`}>{d}</span>}
+          {detail && (
+            <code title={detail} className="min-w-0 truncate font-mono text-stone-500">
+              {detail}
+            </code>
+          )}
+          {d && <span className={`ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${badge}`}>{d}</span>}
         </summary>
-        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono">{JSON.stringify({ input: step.input, output: step.output }, null, 2)}</pre>
+        <pre className="mt-1 whitespace-pre-wrap break-words font-mono [overflow-wrap:anywhere]">{JSON.stringify({ input: step.input, output: step.output }, null, 2)}</pre>
       </details>
     </li>
   );

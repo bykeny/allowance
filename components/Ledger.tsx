@@ -87,10 +87,15 @@ const VERDICT_PILL: Record<string, string> = {
   DENY: "border-red-300 bg-red-50 text-red-800",
 };
 
-function VerdictCell({ value, node }: ICellRendererParams<Row>) {
+function VerdictCell({ value, data, node }: ICellRendererParams<Row>) {
   if (node.rowPinned || !value) return null;
+  // Display only: the stored verdict stays ESCALATE; this just shows the human approved it.
+  const approved = value === "ESCALATE" && data?.status === "CAPTURED" && data?.paidVia === "HUMAN_APPROVAL";
   return (
-    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-bold tracking-wide ${VERDICT_PILL[value] ?? ""}`}>{value}</span>
+    <span className={`whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-bold tracking-wide ${VERDICT_PILL[value] ?? ""}`}>
+      {value}
+      {approved && <span className="font-semibold"> → approved</span>}
+    </span>
   );
 }
 
@@ -206,7 +211,7 @@ export default function Ledger({
         cellRenderer: AmountCell,
         valueFormatter: (p) => (typeof p.value === "number" ? money(p.value, p.data?.currency) : ""),
       },
-      { headerName: "Verdict", field: "decision", width: 110, cellRenderer: VerdictCell },
+      { headerName: "Verdict", field: "decision", width: 160, cellRenderer: VerdictCell },
       { headerName: "Policy reason", field: "reason", flex: 3, minWidth: 220, tooltipField: "reason" },
       { headerName: "Agent's justification", field: "justification", flex: 3, minWidth: 220, tooltipField: "justification" },
       { headerName: "Vendor", field: "vendor", width: 125 },
