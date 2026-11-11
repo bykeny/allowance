@@ -24,7 +24,7 @@ export default function Chat({ onActivity }: { onActivity: () => void }) {
   const [busy, setBusy] = useState(false);
   const end = useRef<HTMLDivElement>(null);
 
-  useEffect(() => end.current?.scrollIntoView({ behavior: "smooth" }), [msgs, busy]);
+  useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
 
   async function send(message: string) {
     if (!message.trim() || busy) return;
