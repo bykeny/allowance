@@ -6,10 +6,12 @@ import { evaluate } from "../lib/policy";
 
 describe("Policy API and Catalog Meta (Task 2.5)", () => {
   beforeEach(() => {
+    db.setVaultId(undefined);
     db.reset();
   });
 
   afterEach(() => {
+    db.setVaultId(undefined);
     db.reset();
   });
 

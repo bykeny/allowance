@@ -6,11 +6,13 @@ describe("POST /api/dev/purchase", () => {
   const originalEnv = process.env.ALLOW_DEV_ROUTES;
 
   beforeEach(() => {
+    db.setVaultId(undefined);
     db.reset();
   });
 
   afterEach(() => {
     process.env.ALLOW_DEV_ROUTES = originalEnv;
+    db.setVaultId(undefined);
     db.reset();
   });
 
