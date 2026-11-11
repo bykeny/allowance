@@ -58,17 +58,20 @@ export default function Home() {
     return () => clearTimeout(t);
   }, []);
 
-  async function changePolicy(patch: Partial<Policy>) {
+  /** Returns the server's validation error, or null when the policy was saved. */
+  async function changePolicy(patch: Partial<Policy>): Promise<string | null> {
+    let err: string | null = null;
     try {
       const r = await fetch("/api/policy", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
-        setNotice(j.error ?? `Policy update rejected (HTTP ${r.status}).`);
+        err = j.error ?? `Policy update rejected (HTTP ${r.status}).`;
       }
     } catch (e) {
-      setNotice(`Policy update failed: ${String(e)}`);
+      err = `Could not reach the server: ${String(e)}`;
     }
-    refresh();
+    await refresh();
+    return err;
   }
 
   async function linkWallet() {

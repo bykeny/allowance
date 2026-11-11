@@ -283,7 +283,11 @@ export default function Ledger({
     if (fresh.length) e.api.flashCells({ rowNodes: fresh, flashDuration: 1200, fadeDuration: 800 });
   }, []);
 
-  const pinned = useMemo<Row[]>(() => (totals && totals.shown > 0 ? [{ id: "__totals", __totals: totals }] : []), [totals]);
+  // The id changes with the content so AG Grid re-renders the pinned cells (their field values never change).
+  const pinned = useMemo<Row[]>(
+    () => (totals && totals.shown > 0 ? [{ id: `__totals-${Object.values(totals).join("-")}`, __totals: totals }] : []),
+    [totals]
+  );
 
   function exportCsv() {
     grid.current?.api.exportDataAsCsv({
