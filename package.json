@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "smoke:paypal": "node --env-file=.env.local scripts/paypal-smoke.mjs",
     "gateway:check": "node --env-file=.env.local --import tsx scripts/gateway-check.ts"
   },
@@ -27,6 +28,7 @@
     "eslint-config-next": "16.4.6",
     "tailwindcss": "4.3.3",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

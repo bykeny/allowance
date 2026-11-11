@@ -68,11 +68,26 @@ export const db = {
     save();
     return i;
   },
+  addEvent(intentId: string, type: string, detail?: string) {
+    const i = load().intents.find((x) => x.id === intentId);
+    if (!i) return;
+    const event = { at: new Date().toISOString(), type, ...(detail ? { detail } : {}) };
+    i.events = [...(i.events ?? []), event];
+    save();
+    return event;
+  },
 
   spentToday(): number {
     const today = new Date().toISOString().slice(0, 10);
     return load()
       .intents.filter((i) => i.status === "CAPTURED" && i.createdAt.startsWith(today))
+      .reduce((s, i) => s + i.amount, 0);
+  },
+
+  pendingToday(): number {
+    const today = new Date().toISOString().slice(0, 10);
+    return load()
+      .intents.filter((i) => i.status === "AWAITING_HUMAN" && i.createdAt.startsWith(today))
       .reduce((s, i) => s + i.amount, 0);
   },
 

@@ -14,6 +14,12 @@ export interface Policy {
   blockedCategories: string[];
 }
 
+export interface IntentEvent {
+  at: string; // ISO
+  type: string;
+  detail?: string;
+}
+
 export interface Intent {
   id: string;
   createdAt: string; // ISO
@@ -32,6 +38,7 @@ export interface Intent {
   approveUrl?: string;
   paidVia?: "VAULT" | "HUMAN_APPROVAL";
   error?: string;
+  events?: IntentEvent[];
 }
 
 export interface CatalogItem {

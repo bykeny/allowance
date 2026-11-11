@@ -16,6 +16,6 @@ Read `docs/IMPLEMENTATION_PLAN.md` before starting. It has the task list, file o
 - **Policy stays deterministic.** No LLM calls inside `lib/policy.ts`.
 - **Sandbox only.** `PAYPAL_BASE` must stay on `api-m.sandbox.paypal.com`. Never commit `.env.local` or any secret.
 - **Stay in your workstream's files** (see the plan). If you need to change a shared file (`lib/types.ts`, `lib/db.ts`), keep the change additive and say so in the commit message.
-- **Before every commit:** `npm run lint && npm run build` must pass.
+- **Before every commit:** `npm run lint && npm run build && npm test` must pass.
 - **Do not fake results.** No mock PayPal responses in the app; if a sandbox call fails, surface the error in the ledger.
 - Small commits, one task per commit, message format `A3: capture on return`.

@@ -24,3 +24,13 @@ export function searchCatalog(query: string): CatalogItem[] {
 }
 
 export const findItem = (id: string) => CATALOG.find((i) => i.id === id);
+
+export const getCatalogVendors = (): string[] => Array.from(new Set(CATALOG.map((i) => i.vendor)));
+
+export const getCatalogCategories = (): string[] => Array.from(new Set(CATALOG.map((i) => i.category)));
+
+export const getCatalogMeta = () => ({
+  items: CATALOG,
+  vendors: getCatalogVendors(),
+  categories: getCatalogCategories(),
+});
