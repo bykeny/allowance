@@ -1,8 +1,27 @@
 // PayPal Sandbox gateway: OAuth, Orders v2, Vault v3, webhook verification.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const BASE = () => process.env.PAYPAL_BASE ?? "https://api-m.sandbox.paypal.com";
 const APP_URL = () => process.env.APP_URL ?? "http://localhost:3000";
 
 let cached: { token: string; exp: number } | null = null;
+
+/** Any non-2xx PayPal API response. Message is short and never contains secrets or headers. */
+export class PayPalError extends Error {
+  status: number;
+  /** PayPal's error name, e.g. UNPROCESSABLE_ENTITY. Shadows Error.name on purpose. */
+  override name: string;
+  issue?: string;
+  debugId?: string;
+  constructor(status: number, path: string, body: any) {
+    const name = body?.name ?? body?.error ?? "PAYPAL_ERROR";
+    const issue = body?.details?.[0]?.issue;
+    super(`PayPal ${status} on ${path.split("?")[0]}: ${name}${issue ? ` / ${issue}` : ""}`);
+    this.status = status;
+    this.name = name;
+    this.issue = issue;
+    this.debugId = body?.debug_id;
+  }
+}
 
 async function token(): Promise<string> {
   if (cached && Date.now() < cached.exp) return cached.token;
@@ -17,13 +36,12 @@ async function token(): Promise<string> {
     body: "grant_type=client_credentials",
   });
   const j = await r.json();
-  if (!r.ok) throw new Error(`PayPal auth ${r.status}: ${JSON.stringify(j)}`);
+  if (!r.ok) throw new PayPalError(r.status, "/v1/oauth2/token", j);
   cached = { token: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
   return cached.token;
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-async function pp(path: string, body?: unknown, requestId?: string): Promise<any> {
+async function pp(path: string, body?: unknown, requestId?: string, retried = false): Promise<any> {
   const r = await fetch(`${BASE()}${path}`, {
     method: body ? "POST" : "GET",
     headers: {
@@ -33,16 +51,24 @@ async function pp(path: string, body?: unknown, requestId?: string): Promise<any
     },
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (r.status === 401 && !retried) {
+    cached = null; // token expired or revoked: refresh once
+    return pp(path, body, requestId, true);
+  }
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`PayPal ${r.status} on ${path}: ${JSON.stringify(j)}`);
+  if (!r.ok) throw new PayPalError(r.status, path, j);
   return j;
 }
 
 const link = (j: any, ...rels: string[]) =>
   j.links?.find((l: any) => rels.includes(l.rel))?.href as string | undefined;
 
-export const captureIdOf = (order: any): string | undefined =>
-  order?.purchase_units?.[0]?.payments?.captures?.[0]?.id;
+export function captureResult(order: any): { captureId?: string; captureStatus?: string } {
+  const c = order?.purchase_units?.[0]?.payments?.captures?.[0];
+  return { captureId: c?.id, captureStatus: c?.status };
+}
+
+export const captureIdOf = (order: any): string | undefined => captureResult(order).captureId;
 
 /**
  * Create an order.
@@ -89,8 +115,17 @@ export async function createOrder(o: {
   };
 }
 
-export const captureOrder = (orderId: string) =>
-  pp(`/v2/checkout/orders/${orderId}/capture`, {}, `capture-${orderId}`);
+/** Capture an approved order. Safe to repeat: an already-captured order is returned as-is. */
+export async function captureOrder(orderId: string) {
+  try {
+    return await pp(`/v2/checkout/orders/${orderId}/capture`, {}, `capture-${orderId}`);
+  } catch (e) {
+    if (e instanceof PayPalError && e.status === 422 && e.issue === "ORDER_ALREADY_CAPTURED") {
+      return getOrder(orderId);
+    }
+    throw e;
+  }
+}
 
 export const getOrder = (orderId: string) => pp(`/v2/checkout/orders/${orderId}`);
 
