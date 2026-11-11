@@ -37,10 +37,15 @@ export default function Chat({ onActivity }: { onActivity: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message }),
       });
-      const j = await r.json();
-      setMsgs((m) => [...m, r.ok ? { role: "agent", text: j.reply, trace: j.trace } : { role: "error", text: j.error }]);
+      const j = await r.json().catch(() => ({ error: `The agent returned an unreadable response (HTTP ${r.status}).` }));
+      setMsgs((m) => [
+        ...m,
+        r.ok && !j.error
+          ? { role: "agent", text: j.reply ?? "", trace: j.trace }
+          : { role: "error", text: j.error ?? `Agent request failed (HTTP ${r.status}).` },
+      ]);
     } catch (e) {
-      setMsgs((m) => [...m, { role: "error", text: String(e) }]);
+      setMsgs((m) => [...m, { role: "error", text: `Could not reach the agent: ${String(e)}` }]);
     } finally {
       setBusy(false);
       onActivity();
