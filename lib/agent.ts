@@ -154,7 +154,12 @@ async function complete(llm: OpenAI, messages: Msg[]) {
   }
 }
 
-export async function runAgent(userText: string): Promise<{ reply: string; trace: ToolTrace[] }> {
+export interface AgentHooks {
+  onToolStart?: (name: string, input: unknown) => void;
+  onToolResult?: (name: string, output: unknown) => void;
+}
+
+export async function runAgent(userText: string, hooks: AgentHooks = {}): Promise<{ reply: string; trace: ToolTrace[] }> {
   const llm = client();
   const messages = (g.__allowanceChat ??= []);
   trimHistory(messages);
@@ -183,11 +188,13 @@ export async function runAgent(userText: string): Promise<{ reply: string; trace
         let output: unknown;
         try {
           input = c.function.arguments ? JSON.parse(c.function.arguments) : {};
+          hooks.onToolStart?.(c.function.name, input);
           const h = handlers[c.function.name];
           output = h ? await h(input) : { error: `Unknown tool ${c.function.name}` };
         } catch (e) {
           output = { error: e instanceof Error ? e.message : String(e) };
         }
+        hooks.onToolResult?.(c.function.name, output);
         trace.push({ name: c.function.name, input, output });
         messages.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(output) });
       }
