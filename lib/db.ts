@@ -91,7 +91,8 @@ export const db = {
       .reduce((s, i) => s + i.amount, 0);
   },
 
-  getVaultId: () => load().vaultId,
+  // DEFAULT_VAULT_ID lets a deployed instance keep its linked wallet across restarts (ephemeral disk).
+  getVaultId: () => load().vaultId ?? (process.env.DEFAULT_VAULT_ID || undefined),
   setVaultId(id: string | undefined) {
     load().vaultId = id;
     save();

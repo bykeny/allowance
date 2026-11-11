@@ -14,6 +14,16 @@ Every request lands in an audit ledger with the agent's justification, the rule 
 
 The model never talks to PayPal. It can only call `request_purchase`; a deterministic policy engine (`lib/policy.ts`) sits between that tool and the PayPal gateway, and prices come from the catalog, not from the model.
 
+## Live demo and judge access
+
+- **Live app:** https://allowance-g8sh.onrender.com/ (free hosting: the first load can take up to a minute while the instance wakes up)
+- **Sandbox only.** No real money moves. Everything runs against the PayPal Sandbox.
+- **Sandbox buyer account** (use it when PayPal asks you to log in to link the wallet or approve a payment):
+  - Email: `<SANDBOX_BUYER_EMAIL>`
+  - Password: `<SANDBOX_BUYER_PASSWORD>`
+- **How to try it:** click **Link PayPal wallet** and approve with the buyer account, then follow *Demo in three prompts* below. **Reset demo** clears the ledger.
+- If the wallet shows as not linked after a restart, click **Link PayPal wallet** again.
+
 ## Run it
 
 Requires Node 20+.
@@ -69,7 +79,7 @@ PayPal APIs used: `POST /v1/oauth2/token`, `POST /v2/checkout/orders`, `POST /v2
 
 ## Deploy
 
-`render.yaml` is included. Create a Blueprint on Render from this repo, fill in the secret env vars, and set `APP_URL` to the Render URL. The free tier has no persistent disk, so the ledger resets when the instance restarts.
+`render.yaml` is included. Create a Blueprint on Render from this repo, fill in the secret env vars, and set `APP_URL` to the Render URL. The free tier has no persistent disk, so the ledger resets when the instance restarts. Set `DEFAULT_VAULT_ID` to a vault payment-token ID to keep a linked wallet across restarts.
 
 ## License
 
