@@ -27,6 +27,7 @@ export async function requestPurchase(input: PurchaseInput) {
     justification: input.justification,
     status: "REQUESTED",
   });
+  db.addEvent(intent.id, "requested", input.justification);
 
   const verdict = evaluate(
     { vendor: item.vendor, category: item.category, amount: item.price, itemId: item.id },
@@ -35,6 +36,7 @@ export async function requestPurchase(input: PurchaseInput) {
     previous
   );
   db.updateIntent(intent.id, verdict);
+  db.addEvent(intent.id, "policy_verdict", `${verdict.decision}: ${verdict.reason}`);
 
   if (verdict.decision === "DENY") {
     db.updateIntent(intent.id, { status: "DENIED" });
@@ -57,6 +59,7 @@ export async function requestPurchase(input: PurchaseInput) {
       description: `${item.name} (${item.vendor})`,
       vaultId,
     });
+    db.addEvent(intent.id, "order_created", order.id);
 
     if (vaultId) {
       // Vaulted orders usually complete at create; otherwise capture. Only a COMPLETED capture counts as paid.
@@ -69,9 +72,11 @@ export async function requestPurchase(input: PurchaseInput) {
           captureStatus === "DECLINED" || captureStatus === "FAILED" ? " (the PayPal wallet's funding source was declined)" : ""
         }`;
         db.updateIntent(intent.id, { status: "FAILED", orderId: order.id, captureId, paidVia: "VAULT", error });
+        db.addEvent(intent.id, "failed", error);
         return { intent_id: intent.id, decision: "ALLOW", reason, status: "FAILED", error };
       }
       db.updateIntent(intent.id, { status: "CAPTURED", orderId: order.id, captureId, paidVia: "VAULT" });
+      db.addEvent(intent.id, "captured", captureId);
       return { intent_id: intent.id, decision: "ALLOW", reason, status: "CAPTURED", order_id: order.id };
     }
 
@@ -91,6 +96,7 @@ export async function requestPurchase(input: PurchaseInput) {
           ? e.message
           : String(e);
     db.updateIntent(intent.id, { status: "FAILED", error });
+    db.addEvent(intent.id, "failed", error);
     return { intent_id: intent.id, ...verdict, reason, status: "FAILED", error };
   }
 }

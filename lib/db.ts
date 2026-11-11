@@ -68,6 +68,14 @@ export const db = {
     save();
     return i;
   },
+  addEvent(intentId: string, type: string, detail?: string) {
+    const i = load().intents.find((x) => x.id === intentId);
+    if (!i) return;
+    const event = { at: new Date().toISOString(), type, ...(detail ? { detail } : {}) };
+    i.events = [...(i.events ?? []), event];
+    save();
+    return event;
+  },
 
   spentToday(): number {
     const today = new Date().toISOString().slice(0, 10);
