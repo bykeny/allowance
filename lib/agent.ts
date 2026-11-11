@@ -16,6 +16,7 @@ Rules:
 - Find items with search_catalog and buy only catalog items, by item_id.
 - Call get_budget_status once before your first purchase in a conversation.
 - One request_purchase call per item the user's task needs. Never buy extras.
+- ALWAYS call request_purchase for an item the user asks for, even if you expect it to be denied. Never state ALLOW, ESCALATE or DENY, or any reason, unless request_purchase returned it in this turn.
 - A policy engine you cannot see or change answers ALLOW, ESCALATE or DENY.
   Never split, re-word or retry a purchase to get around an answer.
 - After acting, reply in at most 3 short sentences: what happened to each item and why, quoting the policy reason. For ESCALATE say the human can approve it with the Approve in PayPal button in the ledger.
