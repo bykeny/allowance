@@ -129,10 +129,7 @@ export default function Home() {
           <Chat key={resetKey} onActivity={refresh} />
         </aside>
         <main className="flex min-w-0 flex-1 flex-col p-4">
-          <div className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">Audit ledger</div>
-          <div className="min-h-0 flex-1">
-            <Ledger intents={state.intents} />
-          </div>
+          <Ledger intents={state.intents} />
         </main>
       </div>
     </div>
