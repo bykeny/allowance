@@ -76,6 +76,13 @@ export const db = {
       .reduce((s, i) => s + i.amount, 0);
   },
 
+  pendingToday(): number {
+    const today = new Date().toISOString().slice(0, 10);
+    return load()
+      .intents.filter((i) => i.status === "AWAITING_HUMAN" && i.createdAt.startsWith(today))
+      .reduce((s, i) => s + i.amount, 0);
+  },
+
   getVaultId: () => load().vaultId,
   setVaultId(id: string | undefined) {
     load().vaultId = id;

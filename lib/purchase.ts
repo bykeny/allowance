@@ -28,7 +28,12 @@ export async function requestPurchase(input: PurchaseInput) {
     status: "REQUESTED",
   });
 
-  const verdict = evaluate({ vendor: item.vendor, category: item.category, amount: item.price }, db.getPolicy(), db.spentToday(), previous);
+  const verdict = evaluate(
+    { vendor: item.vendor, category: item.category, amount: item.price, itemId: item.id },
+    db.getPolicy(),
+    db.spentToday(),
+    previous
+  );
   db.updateIntent(intent.id, verdict);
 
   if (verdict.decision === "DENY") {
