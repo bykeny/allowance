@@ -19,8 +19,8 @@ The model never talks to PayPal. It can only call `request_purchase`; a determin
 - **Live app:** https://allowance-g8sh.onrender.com/ (free hosting: the first load can take up to a minute while the instance wakes up)
 - **Sandbox only.** No real money moves. Everything runs against the PayPal Sandbox.
 - **Sandbox buyer account** (use it when PayPal asks you to log in to link the wallet or approve a payment):
-  - Email: `<SANDBOX_BUYER_EMAIL>`
-  - Password: `<SANDBOX_BUYER_PASSWORD>`
+  - Email: `sb-fjfzg53857983@personal.example.com`
+  - Password: `I?<^m2Vo`
 - **How to try it:** click **Link PayPal wallet** and approve with the buyer account, then follow *Demo in three prompts* below. **Reset demo** clears the ledger.
 - If the wallet shows as not linked after a restart, click **Link PayPal wallet** again.
 - This is a single-user demo: there is no login, so anyone with the link can change the policy or reset the demo, and visitors share one agent conversation.
@@ -74,7 +74,6 @@ Ledger (AG Grid) ◄── polls /api/ledger
 | `lib/db.ts` | JSON-file store (`.data/db.json`) |
 | `app/api/*` | `agent`, `ledger`, `policy`, `vault/setup`, `vault/return`, `paypal/return`, `paypal/webhook` |
 | `components/*` | Chat, policy bar, AG Grid ledger |
-| `docs/IMPLEMENTATION_PLAN.md` | Team plan, task list and agent prompts |
 
 PayPal APIs used: `POST /v1/oauth2/token`, `POST /v2/checkout/orders`, `POST /v2/checkout/orders/{id}/capture`, `POST /v3/vault/setup-tokens`, `POST /v3/vault/payment-tokens`, `POST /v1/notifications/verify-webhook-signature`.
 
