@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     if (e instanceof PayPalError) console.error(`vault return failed: ${e.name} debug_id=${e.debugId ?? "(none)"}`);
     else console.error("vault return failed:", e instanceof Error ? e.message : String(e));
+    db.setPendingSetupToken(undefined);
     return home("error");
   }
 }

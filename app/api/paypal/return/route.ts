@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
 
   if (q.get("cancelled")) {
     db.updateIntent(intent.id, { status: "CANCELLED", approveUrl: undefined });
+    db.addEvent(intent.id, "cancelled", "Human cancelled in PayPal");
     return home("cancelled");
   }
 
@@ -38,10 +39,12 @@ export async function GET(req: NextRequest) {
         approveUrl: undefined,
         error: undefined,
       });
+      db.addEvent(intent.id, "captured", captureId);
       return home("captured");
     }
     if (captureStatus === "PENDING") {
       db.updateIntent(intent.id, { captureId, error: "Capture pending at PayPal", approveUrl: undefined });
+      db.addEvent(intent.id, "capture_pending", captureId);
       return home("ignored");
     }
     db.updateIntent(intent.id, {
@@ -50,6 +53,7 @@ export async function GET(req: NextRequest) {
       approveUrl: undefined,
       error: `PayPal capture ${captureStatus ?? "missing"}`,
     });
+    db.addEvent(intent.id, "failed", `PayPal capture ${captureStatus ?? "missing"}`);
     return home("failed");
   } catch (e) {
     const error =
@@ -61,6 +65,7 @@ export async function GET(req: NextRequest) {
           ? e.message
           : String(e);
     db.updateIntent(intent.id, { status: "FAILED", approveUrl: undefined, error });
+    db.addEvent(intent.id, "failed", error);
     return home("failed");
   } finally {
     inFlight.delete(intent.id);

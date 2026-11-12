@@ -23,6 +23,7 @@ The model never talks to PayPal. It can only call `request_purchase`; a determin
   - Password: `<SANDBOX_BUYER_PASSWORD>`
 - **How to try it:** click **Link PayPal wallet** and approve with the buyer account, then follow *Demo in three prompts* below. **Reset demo** clears the ledger.
 - If the wallet shows as not linked after a restart, click **Link PayPal wallet** again.
+- This is a single-user demo: there is no login, so anyone with the link can change the policy or reset the demo, and visitors share one agent conversation.
 
 ## Run it
 

@@ -30,6 +30,7 @@ const EVENT_LABEL: Record<string, string> = {
   approved_by_human: "Approved by a human in PayPal",
   captured: "Payment captured",
   cancelled: "Cancelled in PayPal",
+  capture_pending: "Capture pending at PayPal",
   failed: "Failed",
   webhook_received: "PayPal webhook received",
   wallet_linked: "PayPal wallet linked",
